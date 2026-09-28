@@ -1,0 +1,5 @@
+EXAM_READ = "exam.read"
+EXAM_CREATE = "exam.create"
+EXAM_UPDATE = "exam.update"
+EXAM_RESULT_READ = "exam_result.read"
+EXAM_RESULT_UPDATE = "exam_result.update"

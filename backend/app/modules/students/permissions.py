@@ -1,0 +1,5 @@
+STUDENT_READ = "student.read"
+STUDENT_CREATE = "student.create"
+STUDENT_UPDATE = "student.update"
+STUDENT_DELETE = "student.delete"
+STUDENT_ARCHIVE = "student.archive"

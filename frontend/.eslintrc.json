@@ -1,0 +1,22 @@
+{
+  "plugins": ["boundaries"],
+  "settings": {
+    "boundaries/elements": [
+      { "type": "app", "pattern": "src/app/*" },
+      { "type": "features", "pattern": "src/features/*" },
+      { "type": "components", "pattern": "src/components/*" },
+      { "type": "services", "pattern": "src/services/*" },
+      { "type": "utils", "pattern": "src/utils/*" }
+    ]
+  },
+  "rules": {
+    "boundaries/element-types": ["error", {
+      "default": "disallow",
+      "rules": [
+        { "from": "app", "allow": ["features", "components", "services", "utils"] },
+        { "from": "features", "allow": ["components", "services", "utils"] },
+        { "from": "components", "allow": ["utils"] }
+      ]
+    }]
+  }
+}

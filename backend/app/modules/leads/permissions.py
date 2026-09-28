@@ -1,0 +1,5 @@
+LEAD_READ = "lead.read"
+LEAD_CREATE = "lead.create"
+LEAD_UPDATE = "lead.update"
+LEAD_DELETE = "lead.delete"
+LEAD_CONVERT = "lead.convert"

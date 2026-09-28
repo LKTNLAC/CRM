@@ -1,0 +1,7 @@
+CLASS_READ = "class.read"
+CLASS_CREATE = "class.create"
+CLASS_UPDATE = "class.update"
+CLASS_DELETE = "class.delete"
+CLASS_ASSIGN_TEACHER = "class.assign_teacher"
+SCHEDULE_READ = "schedule.read"
+SCHEDULE_MANAGE = "schedule.manage"
