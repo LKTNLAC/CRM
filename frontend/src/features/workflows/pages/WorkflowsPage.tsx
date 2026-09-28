@@ -61,12 +61,12 @@ export default function WorkflowsPage() {
                       {can("workflow.manage") && (
                         <Switch
                           checked={w.is_enabled}
-                          onChange={(e) =>
+                          onCheckedChange={(checked) =>
                             toggle.mutate(
-                              { id: w.id, enabled: e.target.checked },
+                              { id: w.id, enabled: checked },
                               {
                                 onSuccess: () =>
-                                  toast.success(e.target.checked ? "Đã bật" : "Đã tắt"),
+                                  toast.success(checked ? "Đã bật" : "Đã tắt"),
                               }
                             )
                           }
