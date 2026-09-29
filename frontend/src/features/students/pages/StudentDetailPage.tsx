@@ -2,18 +2,29 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, ArrowLeft, Link2, Loader2, Unlink } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { Archive, ArrowLeft, Link2, Loader2, Pencil, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { usePermission } from "@/permissions/usePermission";
 import { api } from "@/services/api";
 import { useUsers } from "@/features/users/services";
-import { useArchiveStudent, useStudent } from "../services";
+import { useArchiveStudent, useStudent, useUpdateStudent } from "../services";
+import type { Student } from "../types";
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +37,7 @@ export default function StudentDetailPage() {
   const archive = useArchiveStudent();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [linkUserId, setLinkUserId] = useState("");
   const [linking, setLinking] = useState(false);
 
@@ -95,12 +107,18 @@ export default function StudentDetailPage() {
         title={student.full_name}
         description={`${student.student_code} · ${student.email ?? student.phone ?? "—"}`}
         actions={
-          can("student.archive") &&
-          student.status !== "ARCHIVED" && (
-            <Button variant="outline" onClick={() => setConfirmOpen(true)}>
-              <Archive className="h-4 w-4" /> Lưu trữ
-            </Button>
-          )
+          <div className="flex gap-2">
+            {can("student.update") && (
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-4 w-4" /> Chỉnh sửa
+              </Button>
+            )}
+            {can("student.archive") && student.status !== "ARCHIVED" && (
+              <Button variant="outline" onClick={() => setConfirmOpen(true)}>
+                <Archive className="h-4 w-4" /> Lưu trữ
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -200,17 +218,25 @@ export default function StudentDetailPage() {
         </Card>
 
         {/* Card 3: Hoạt động */}
-        <Card className="lg:col-span-1">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Hoạt động</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Enrollment, attendance, exam sẽ hiển thị ở Phase 12.
+              Enrollment, attendance, exam sẽ hiển thị ở Phase sau.
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {student && (
+        <EditStudentDialog
+          student={student}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmOpen}
@@ -232,5 +258,102 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-right">{value}</span>
     </div>
+  );
+}
+
+function EditStudentDialog({
+  student,
+  open,
+  onOpenChange,
+}: {
+  student: Student;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const update = useUpdateStudent();
+  const form = useForm({
+    defaultValues: {
+      full_name: student.full_name,
+      email: student.email ?? "",
+      phone: student.phone ?? "",
+      date_of_birth: student.date_of_birth ?? "",
+      gender: student.gender ?? "",
+    },
+  });
+
+  const onSubmit = form.handleSubmit((v) => {
+    update.mutate(
+      {
+        id: student.id,
+        payload: {
+          full_name: v.full_name,
+          email: v.email || null,
+          phone: v.phone || null,
+          date_of_birth: v.date_of_birth || null,
+          gender: v.gender || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Đã cập nhật học viên");
+          onOpenChange(false);
+        },
+        onError: (err: any) =>
+          toast.error(err?.response?.data?.error?.message ?? "Không cập nhật được"),
+      }
+    );
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Chỉnh sửa học viên</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Họ tên *</Label>
+            <Input {...form.register("full_name")} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" {...form.register("email")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Điện thoại</Label>
+              <Input {...form.register("phone")} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Ngày sinh</Label>
+              <Input type="date" {...form.register("date_of_birth")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Giới tính</Label>
+              <Select {...form.register("gender")}>
+                <option value="">— Chọn —</option>
+                <option value="male">Nam</option>
+                <option value="female">Nữ</option>
+                <option value="other">Khác</option>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Hủy
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

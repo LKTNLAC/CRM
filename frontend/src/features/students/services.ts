@@ -47,3 +47,17 @@ export function useArchiveStudent() {
     },
   });
 }
+
+export function useUpdateStudent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<Student> }) => {
+      const { data } = await api.patch<Student>(`/students/${id}`, payload);
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student", vars.id] });
+    },
+  });
+}
