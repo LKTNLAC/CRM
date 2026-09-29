@@ -56,3 +56,16 @@ export function useCreateLevel() {
       qc.invalidateQueries({ queryKey: ["course-levels", vars.courseId] }),
   });
 }
+export function useUpdateCourse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<Course> }) => {
+      const { data } = await api.patch<Course>(`/courses/${id}`, payload);
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["courses"] });
+      qc.invalidateQueries({ queryKey: ["course", vars.id] });
+    },
+  });
+}

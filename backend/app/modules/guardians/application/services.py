@@ -136,3 +136,17 @@ class GuardianService:
             }
             for s, sg in rows
         ]
+        
+    async def unlink_from_student(self, guardian_id: UUID, student_id: UUID) -> None:
+        from app.modules.guardians.infrastructure.models import StudentGuardianModel
+        stmt = select(StudentGuardianModel).where(
+            StudentGuardianModel.guardian_id == guardian_id,
+            StudentGuardianModel.student_id == student_id,
+        )
+        link = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not link:
+            raise NotFoundError("Link not found")
+        await self.session.delete(link)
+        await self.session.commit()
+        
+        

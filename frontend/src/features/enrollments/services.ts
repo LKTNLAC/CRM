@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import type { Enrollment, EnrollmentClass, EnrollmentCreate, EnrollmentTransfer } from "./types";
+import { useStudents } from "@/features/students/services";
 
 export function useEnrollments(params: { student_id?: string; status?: string } = {}) {
   return useQuery({
@@ -72,4 +73,13 @@ export function useCancelEnrollment() {
       qc.invalidateQueries({ queryKey: ["enrollment", id] });
     },
   });
+}
+
+export function useStudentMap() {
+  const { data: students = [] } = useStudents();
+  const map = new Map<string, { code: string; name: string }>();
+  students.forEach((s) => {
+    map.set(s.id, { code: s.student_code, name: s.full_name });
+  });
+  return map;
 }

@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { ArrowLeft, Loader2, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { usePermission } from "@/permissions/usePermission";
-import { useClass, useClassSchedules } from "../services";
+import { useClass, useClassSchedules, useUpdateClass } from "../services";
 import { ScheduleDialog } from "../components/ScheduleDialog";
 import { DAY_NAMES } from "../types";
 
@@ -18,6 +30,7 @@ export default function ClassDetailPage() {
   const { data: cls, isLoading } = useClass(id);
   const { data: schedules = [] } = useClassSchedules(id);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (isLoading || !cls) {
     return (
@@ -29,15 +42,32 @@ export default function ClassDetailPage() {
 
   return (
     <div>
-      <Button variant="ghost" size="sm" onClick={() => navigate("/classes")} className="mb-3 -ml-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate("/classes")}
+        className="mb-3 -ml-2"
+      >
         <ArrowLeft className="h-4 w-4" /> Quay lại
       </Button>
 
-      <PageHeader title={cls.name} description={`Mã: ${cls.code}`} />
+      <PageHeader
+        title={cls.name}
+        description={`Mã: ${cls.code}`}
+        actions={
+          can("class.update") && (
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" /> Chỉnh sửa
+            </Button>
+          )
+        }
+      />
 
       <div className="grid lg:grid-cols-3 gap-4">
         <Card>
-          <CardHeader><CardTitle className="text-base">Thông tin</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Thông tin</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <Row label="Trạng thái" value={<StatusBadge status={cls.status} />} />
             <Separator />
@@ -62,13 +92,20 @@ export default function ClassDetailPage() {
           </CardHeader>
           <CardContent>
             {schedules.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Chưa có lịch học.</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Chưa có lịch học.
+              </p>
             ) : (
               <ul className="space-y-2">
                 {schedules.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  >
                     <span className="font-medium">{DAY_NAMES[s.day_of_week]}</span>
-                    <span className="font-mono text-xs">{s.start_time} → {s.end_time}</span>
+                    <span className="font-mono text-xs">
+                      {s.start_time} → {s.end_time}
+                    </span>
                     <span className="text-muted-foreground text-xs">{s.room ?? "—"}</span>
                   </li>
                 ))}
@@ -77,6 +114,10 @@ export default function ClassDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {cls && (
+        <EditClassDialog cls={cls} open={editOpen} onOpenChange={setEditOpen} />
+      )}
 
       {id && <ScheduleDialog classId={id} open={open} onOpenChange={setOpen} />}
     </div>
@@ -89,5 +130,112 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-right">{value}</span>
     </div>
+  );
+}
+
+function EditClassDialog({
+  cls,
+  open,
+  onOpenChange,
+}: {
+  cls: {
+    id: string;
+    name: string;
+    room: string | null;
+    capacity: number;
+    status: string;
+    start_date: string | null;
+    end_date: string | null;
+  };
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const update = useUpdateClass();
+  const form = useForm({
+    defaultValues: {
+      name: cls.name,
+      room: cls.room ?? "",
+      capacity: cls.capacity,
+      status: cls.status,
+      start_date: cls.start_date ?? "",
+      end_date: cls.end_date ?? "",
+    },
+  });
+
+  const onSubmit = form.handleSubmit((v) => {
+    update.mutate(
+      {
+        id: cls.id,
+        payload: {
+          name: v.name,
+          room: v.room || null,
+          capacity: Number(v.capacity),
+          status: v.status,
+          start_date: v.start_date || null,
+          end_date: v.end_date || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Đã cập nhật lớp học");
+          onOpenChange(false);
+        },
+        onError: (err: any) =>
+          toast.error(err?.response?.data?.error?.message ?? "Không cập nhật được"),
+      }
+    );
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Chỉnh sửa lớp học</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Tên *</Label>
+            <Input {...form.register("name")} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Phòng</Label>
+              <Input {...form.register("room")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Sức chứa</Label>
+              <Input type="number" {...form.register("capacity")} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Trạng thái</Label>
+            <Select {...form.register("status")}>
+              <option value="PLANNED">Dự kiến</option>
+              <option value="OPEN">Đang mở</option>
+              <option value="ACTIVE">Đang học</option>
+              <option value="CLOSED">Đã đóng</option>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Bắt đầu</Label>
+              <Input type="date" {...form.register("start_date")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Kết thúc</Label>
+              <Input type="date" {...form.register("end_date")} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Hủy
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

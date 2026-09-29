@@ -64,3 +64,18 @@ export function useAssignTeacher() {
     },
   });
 }
+
+export function useUpdateClass() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<Class> }) => {
+      const { data } = await api.patch<Class>(`/classes/${id}`, payload);
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["classes"] });
+      qc.invalidateQueries({ queryKey: ["class", vars.id] });
+    },
+  });
+}
+

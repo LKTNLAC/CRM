@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckSquare, Plus } from "lucide-react";
+import { CheckSquare, Pencil, Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,7 +11,11 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable, Column } from "@/components/shared/DataTable";
@@ -27,6 +31,7 @@ export default function TasksPage() {
   const { can } = usePermission();
   const [status, setStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
 
   const { data = [], isLoading } = useTasks({
     status: status || undefined,
@@ -56,26 +61,41 @@ export default function TasksPage() {
       key: "action",
       header: "",
       cell: (t) => (
-        t.status !== "DONE" && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              update.mutate(
-                { id: t.id, payload: { status: "DONE" } },
-                {
-                  onSuccess: () => toast.success("Đã hoàn thành"),
-                  onError: () => toast.error("Không cập nhật được"),
-                }
-              );
-            }}
-          >
-            Hoàn thành
-          </Button>
-        )
+        <div className="flex gap-1 justify-end">
+          {t.status !== "DONE" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                update.mutate(
+                  { id: t.id, payload: { status: "DONE" } },
+                  {
+                    onSuccess: () => toast.success("Đã hoàn thành"),
+                    onError: () => toast.error("Không cập nhật được"),
+                  }
+                );
+              }}
+            >
+              Hoàn thành
+            </Button>
+          )}
+          {can("task.update") && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditTask(t);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
       ),
-      className: "w-32 text-right",
+      className: "w-44 text-right",
     },
   ];
 
@@ -93,8 +113,8 @@ export default function TasksPage() {
         }
       />
 
-      <div className="mb-4">
-        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full md:w-48">
+      <div className="mb-4 max-w-xs">
+        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Tất cả</option>
           <option value="OPEN">Mở</option>
           <option value="IN_PROGRESS">Đang làm</option>
@@ -107,30 +127,54 @@ export default function TasksPage() {
         data={data}
         loading={isLoading}
         emptyState={
-          <EmptyState icon={CheckSquare} title="Không có task nào" description="Bạn đã hoàn thành hết công việc!" />
+          <EmptyState
+            icon={CheckSquare}
+            title="Không có task nào"
+            description="Bạn đã hoàn thành hết công việc!"
+          />
         }
       />
 
       <CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {editTask && (
+        <EditTaskDialog
+          task={editTask}
+          open={!!editTask}
+          onOpenChange={(v) => !v && setEditTask(null)}
+        />
+      )}
     </div>
   );
 }
 
-const schema = z.object({
+const createSchema = z.object({
   task_type: z.string().min(1),
   title: z.string().min(1, "Vui lòng nhập tiêu đề"),
   description: z.string().optional(),
   due_at: z.string().optional(),
   priority: z.string().default("NORMAL"),
 });
-type FormValues = z.infer<typeof schema>;
+type CreateFormValues = z.infer<typeof createSchema>;
 
-function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function CreateTaskDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const user = useAuthStore((s) => s.user);
   const create = useCreateTask();
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { task_type: "FOLLOW_UP", title: "", description: "", due_at: "", priority: "NORMAL" },
+  const form = useForm<CreateFormValues>({
+    resolver: zodResolver(createSchema),
+    defaultValues: {
+      task_type: "FOLLOW_UP",
+      title: "",
+      description: "",
+      due_at: "",
+      priority: "NORMAL",
+    },
   });
 
   const onSubmit = form.handleSubmit((v) => {
@@ -164,7 +208,9 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             <Label htmlFor="task_type">Loại</Label>
             <Select id="task_type" {...form.register("task_type")}>
               {TASK_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </Select>
           </div>
@@ -199,6 +245,101 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             </Button>
             <Button type="submit" disabled={create.isPending}>
               Tạo task
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditTaskDialog({
+  task,
+  open,
+  onOpenChange,
+}: {
+  task: Task;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const update = useUpdateTask();
+  const form = useForm({
+    defaultValues: {
+      title: task.title,
+      description: task.description ?? "",
+      priority: task.priority,
+      status: task.status,
+      due_at: task.due_at ? task.due_at.slice(0, 16) : "",
+    },
+  });
+
+  const onSubmit = form.handleSubmit((v) => {
+    update.mutate(
+      {
+        id: task.id,
+        payload: {
+          title: v.title,
+          description: v.description || null,
+          priority: v.priority,
+          status: v.status,
+          due_at: v.due_at ? new Date(v.due_at).toISOString() : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Đã cập nhật task");
+          onOpenChange(false);
+        },
+        onError: (err: any) =>
+          toast.error(err?.response?.data?.error?.message ?? "Không cập nhật được"),
+      }
+    );
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Chỉnh sửa task</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Tiêu đề *</Label>
+            <Input {...form.register("title")} />
+          </div>
+          <div className="space-y-2">
+            <Label>Mô tả</Label>
+            <Textarea rows={3} {...form.register("description")} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Trạng thái</Label>
+              <Select {...form.register("status")}>
+                <option value="OPEN">Mở</option>
+                <option value="IN_PROGRESS">Đang làm</option>
+                <option value="DONE">Hoàn thành</option>
+                <option value="CANCELLED">Đã hủy</option>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Ưu tiên</Label>
+              <Select {...form.register("priority")}>
+                <option value="LOW">Thấp</option>
+                <option value="NORMAL">Bình thường</option>
+                <option value="HIGH">Cao</option>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Hạn</Label>
+              <Input type="datetime-local" {...form.register("due_at")} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Hủy
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? "Đang lưu..." : "Lưu"}
             </Button>
           </DialogFooter>
         </form>

@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { usePermission } from "@/permissions/usePermission";
 import { useClasses } from "@/features/classes/services";
 import { useCancelEnrollment, useEnrollment, useEnrollmentClasses, useTransferEnrollment } from "../services";
+import { useStudent } from "@/features/students/services";
 
 export default function EnrollmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,8 @@ export default function EnrollmentDetailPage() {
   const cancel = useCancelEnrollment();
   const [transferOpen, setTransferOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const { data: student } = useStudent(e?.student_id);
+
 
   if (isLoading || !e) {
     return (
@@ -43,8 +46,8 @@ export default function EnrollmentDetailPage() {
       </Button>
 
       <PageHeader
-        title="Chi tiết ghi danh"
-        description={`ID: ${e.id.slice(0, 8)}...`}
+        title={student ? student.full_name : "Chi tiết ghi danh"}
+        description={student ? `Mã HV: ${student.student_code}` : `ID: ${e.id.slice(0, 8)}...`}
         actions={isActive && (
           <div className="flex gap-2">
             {can("enrollment.update") && (

@@ -93,3 +93,11 @@ async def list_students(
 ):
     return await GuardianService(session, ctx).list_students(guardian_id)
 
+@router.delete("/{guardian_id}/students/{student_id}", status_code=204)
+async def unlink_student(
+    guardian_id: UUID,
+    student_id: UUID,
+    ctx: TenantContext = Depends(require_permission("guardian.update")),
+    session: AsyncSession = Depends(get_session),
+):
+    await GuardianService(session, ctx).unlink_from_student(guardian_id, student_id)
