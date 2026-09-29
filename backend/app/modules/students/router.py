@@ -7,7 +7,12 @@ from app.core.database import get_session
 from app.core.dependencies import require_permission
 from app.core.tenant import TenantContext
 from app.modules.students.application.services import StudentService
-from app.modules.students.schemas import StudentCreate, StudentResponse, StudentUpdate, LinkUserRequest
+from app.modules.students.schemas import (
+    LinkUserRequest,
+    StudentCreate,
+    StudentResponse,
+    StudentUpdate,
+)
 
 router = APIRouter(prefix="/students", tags=["students"])
 
@@ -22,17 +27,18 @@ async def list_students(
     ctx: TenantContext = Depends(require_permission("student.read")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await StudentService(session, ctx).list(status=status, counselor_id=counselor_id, search=search, limit=limit, offset=offset)
+    return await StudentService(session, ctx).list(
+        status=status, counselor_id=counselor_id, search=search, limit=limit, offset=offset
+    )
 
 
-@router.post("/{student_id}/link-user", response_model=StudentResponse)
-async def link_user(
-    student_id: UUID,
-    body: LinkUserRequest,
-    ctx: TenantContext = Depends(require_permission("student.update")),
+@router.post("", response_model=StudentResponse, status_code=201)
+async def create_student(
+    body: StudentCreate,
+    ctx: TenantContext = Depends(require_permission("student.create")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await StudentService(session, ctx).link_user(student_id, body.user_id)
+    return await StudentService(session, ctx).create(body.model_dump())
 
 
 @router.get("/{student_id}", response_model=StudentResponse)
@@ -62,6 +68,17 @@ async def archive_student(
 ):
     return await StudentService(session, ctx).archive(student_id)
 
+
+@router.post("/{student_id}/link-user", response_model=StudentResponse)
+async def link_user(
+    student_id: UUID,
+    body: LinkUserRequest,
+    ctx: TenantContext = Depends(require_permission("student.update")),
+    session: AsyncSession = Depends(get_session),
+):
+    return await StudentService(session, ctx).link_user(student_id, body.user_id)
+
+
 @router.delete("/{student_id}/link-user", response_model=StudentResponse)
 async def unlink_user(
     student_id: UUID,
@@ -69,4 +86,3 @@ async def unlink_user(
     session: AsyncSession = Depends(get_session),
 ):
     return await StudentService(session, ctx).unlink_user(student_id)
-
