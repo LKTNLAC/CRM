@@ -22,6 +22,9 @@ import { usePermission } from "@/permissions/usePermission";
 import { useClass, useClassSchedules, useUpdateClass } from "../services";
 import { ScheduleDialog } from "../components/ScheduleDialog";
 import { DAY_NAMES } from "../types";
+import { Trash2 } from "lucide-react";
+import { useUpdateSchedule, useDeleteSchedule } from "../services";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 export default function ClassDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +34,9 @@ export default function ClassDetailPage() {
   const { data: schedules = [] } = useClassSchedules(id);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [editSchedule, setEditSchedule] = useState<any | null>(null);
+  const [deleteSchedule, setDeleteSchedule] = useState<any | null>(null);
+  const deleteSch = useDeleteSchedule();
 
   if (isLoading || !cls) {
     return (
@@ -107,6 +113,27 @@ export default function ClassDetailPage() {
                       {s.start_time} → {s.end_time}
                     </span>
                     <span className="text-muted-foreground text-xs">{s.room ?? "—"}</span>
+
+                    {can("schedule.manage") && (
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => setEditSchedule(s)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => setDeleteSchedule(s)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -120,6 +147,42 @@ export default function ClassDetailPage() {
       )}
 
       {id && <ScheduleDialog classId={id} open={open} onOpenChange={setOpen} />}
+    
+      {id && editSchedule && (
+        <EditScheduleDialog
+          classId={id}
+          schedule={editSchedule}
+          open={!!editSchedule}
+          onOpenChange={(v) => !v && setEditSchedule(null)}
+        />
+      )}
+
+      {id && (
+        <ConfirmDialog
+          open={!!deleteSchedule}
+          onOpenChange={(v) => !v && setDeleteSchedule(null)}
+          title="Xóa lịch học?"
+          description={`${DAY_NAMES[deleteSchedule?.day_of_week ?? 0]} ${deleteSchedule?.start_time ?? ""} → ${deleteSchedule?.end_time ?? ""}`}
+          confirmLabel="Xóa"
+          destructive
+          loading={deleteSch.isPending}
+          onConfirm={() => {
+            if (!id || !deleteSchedule) return;
+            deleteSch.mutate(
+              { classId: id, scheduleId: deleteSchedule.id },
+              {
+                onSuccess: () => {
+                  toast.success("Đã xóa lịch học");
+                  setDeleteSchedule(null);
+                },
+                onError: (err: any) =>
+                  toast.error(err?.response?.data?.error?.message ?? "Không xóa được"),
+              }
+            );
+          }}
+        />
+      )}
+
     </div>
   );
 }
@@ -235,6 +298,90 @@ function EditClassDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function EditScheduleDialog({
+  classId,
+  schedule,
+  open,
+  onOpenChange,
+}: {
+  classId: string;
+  schedule: { id: string; day_of_week: number; start_time: string; end_time: string; room: string | null };
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const update = useUpdateSchedule();
+  const [day, setDay] = useState(String(schedule.day_of_week));
+  const [start, setStart] = useState(schedule.start_time.slice(0, 5));
+  const [end, setEnd] = useState(schedule.end_time.slice(0, 5));
+  const [room, setRoom] = useState(schedule.room ?? "");
+
+  function submit() {
+    update.mutate(
+      {
+        classId,
+        scheduleId: schedule.id,
+        payload: {
+          day_of_week: parseInt(day),
+          start_time: start + ":00",
+          end_time: end + ":00",
+          room: room || null,
+        } as any,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Đã cập nhật lịch học");
+          onOpenChange(false);
+        },
+        onError: (err: any) =>
+          toast.error(err?.response?.data?.error?.message ?? "Không cập nhật được"),
+      }
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Chỉnh sửa lịch học</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label>Thứ</Label>
+            <Select value={day} onChange={(e) => setDay(e.target.value)}>
+              {DAY_NAMES.map((d, i) => (
+                <option key={i} value={i}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Bắt đầu</Label>
+              <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Kết thúc</Label>
+              <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Phòng</Label>
+            <Input value={room} onChange={(e) => setRoom(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Hủy
+          </Button>
+          <Button onClick={submit} disabled={update.isPending}>
+            {update.isPending ? "Đang lưu..." : "Lưu"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

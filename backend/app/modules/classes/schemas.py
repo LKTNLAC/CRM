@@ -61,3 +61,10 @@ class ClassResponse(BaseModel):
     end_date: date | None
 
     model_config = {"from_attributes": True}
+    
+class ScheduleUpdate(BaseModel):
+    day_of_week: int | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    room: str | None = None
+    status: str | None = None

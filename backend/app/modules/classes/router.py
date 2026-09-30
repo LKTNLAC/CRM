@@ -15,6 +15,7 @@ from app.modules.classes.schemas import (
     ScheduleResponse,
     TeacherAssign,
 )
+from app.modules.classes.schemas import ScheduleCreate, ScheduleUpdate
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
@@ -87,3 +88,25 @@ async def assign_teacher(
 ):
     ct = await ClassService(session, ctx).assign_teacher(class_id, body.model_dump())
     return {"id": str(ct.id), "class_id": str(ct.class_id), "teacher_id": str(ct.teacher_id), "role": ct.role}
+
+@router.patch("/{class_id}/schedules/{schedule_id}", response_model=ScheduleResponse)
+async def update_schedule(
+    class_id: UUID,
+    schedule_id: UUID,
+    body: ScheduleUpdate,
+    ctx: TenantContext = Depends(require_permission("schedule.manage")),
+    session: AsyncSession = Depends(get_session),
+):
+    return await ClassService(session, ctx).update_schedule(class_id, schedule_id, body.model_dump(exclude_none=True))
+
+
+@router.delete("/{class_id}/schedules/{schedule_id}", status_code=204)
+async def delete_schedule(
+    class_id: UUID,
+    schedule_id: UUID,
+    ctx: TenantContext = Depends(require_permission("schedule.manage")),
+    session: AsyncSession = Depends(get_session),
+):
+    await ClassService(session, ctx).delete_schedule(class_id, schedule_id)
+    
+    

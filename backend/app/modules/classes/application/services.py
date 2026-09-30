@@ -13,7 +13,7 @@ from app.modules.classes.infrastructure.models import (
 from app.modules.enrollments.infrastructure.models import (
     EnrollmentClassModel,
 )
-
+from app.core.errors import ConflictError, NotFoundError
 
 class ClassService:
     def __init__(self, session: AsyncSession, tenant: TenantContext):
@@ -162,3 +162,31 @@ class ClassService:
         )
         return (await self.session.execute(stmt)).scalar_one()
     
+    async def update_schedule(self, class_id: UUID, schedule_id: UUID, data: dict) -> ClassScheduleModel:
+        await self.get(class_id)
+        stmt = select(ClassScheduleModel).where(
+            ClassScheduleModel.id == schedule_id,
+            ClassScheduleModel.class_id == class_id,
+        )
+        s = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not s:
+            raise NotFoundError("Schedule not found")
+
+        for k, v in data.items():
+            if v is not None:
+                setattr(s, k, v)
+
+        await self.session.commit()
+        return s
+
+    async def delete_schedule(self, class_id: UUID, schedule_id: UUID) -> None:
+        await self.get(class_id)
+        stmt = select(ClassScheduleModel).where(
+            ClassScheduleModel.id == schedule_id,
+            ClassScheduleModel.class_id == class_id,
+        )
+        s = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not s:
+            raise NotFoundError("Schedule not found")
+        await self.session.delete(s)
+        await self.session.commit()

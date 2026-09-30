@@ -79,3 +79,38 @@ export function useUpdateClass() {
   });
 }
 
+export function useUpdateSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      classId,
+      scheduleId,
+      payload,
+    }: {
+      classId: string;
+      scheduleId: string;
+      payload: Partial<ScheduleCreate>;
+    }) => {
+      const { data } = await api.patch<ClassSchedule>(
+        `/classes/${classId}/schedules/${scheduleId}`,
+        payload
+      );
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["class-schedules", vars.classId] });
+    },
+  });
+}
+
+export function useDeleteSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ classId, scheduleId }: { classId: string; scheduleId: string }) => {
+      await api.delete(`/classes/${classId}/schedules/${scheduleId}`);
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["class-schedules", vars.classId] });
+    },
+  });
+}
