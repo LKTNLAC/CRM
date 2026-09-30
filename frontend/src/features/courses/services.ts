@@ -69,3 +69,39 @@ export function useUpdateCourse() {
     },
   });
 }
+
+export function useUpdateLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      courseId,
+      levelId,
+      payload,
+    }: {
+      courseId: string;
+      levelId: string;
+      payload: Partial<LevelCreate>;
+    }) => {
+      const { data } = await api.patch<CourseLevel>(
+        `/courses/${courseId}/levels/${levelId}`,
+        payload
+      );
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["course-levels", vars.courseId] });
+    },
+  });
+}
+
+export function useDeleteLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ courseId, levelId }: { courseId: string; levelId: string }) => {
+      await api.delete(`/courses/${courseId}/levels/${levelId}`);
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["course-levels", vars.courseId] });
+    },
+  });
+}

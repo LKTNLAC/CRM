@@ -44,3 +44,8 @@ class LevelResponse(BaseModel):
     duration_hours: int | None
 
     model_config = {"from_attributes": True}
+class LevelUpdate(BaseModel):
+    code: str | None = None
+    name: str | None = None
+    sequence: int | None = None
+    duration_hours: int | None = None    

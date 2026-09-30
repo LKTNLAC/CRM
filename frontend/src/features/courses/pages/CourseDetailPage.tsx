@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Loader2, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -17,8 +17,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { usePermission } from "@/permissions/usePermission";
-import { useCourse, useCourseLevels, useCreateLevel, useUpdateCourse } from "../services";
+import {
+  useCourse,
+  useCourseLevels,
+  useCreateLevel,
+  useDeleteLevel,
+  useUpdateCourse,
+  useUpdateLevel,
+} from "../services";
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,8 +34,12 @@ export default function CourseDetailPage() {
   const { can } = usePermission();
   const { data: course, isLoading } = useCourse(id);
   const { data: levels = [] } = useCourseLevels(id);
-  const [open, setOpen] = useState(false);
+  const deleteLevel = useDeleteLevel();
+
+  const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [editLevel, setEditLevel] = useState<any | null>(null);
+  const [deleteLevelState, setDeleteLevelState] = useState<any | null>(null);
 
   if (isLoading || !course) {
     return (
@@ -78,7 +90,7 @@ export default function CourseDetailPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Cấp độ ({levels.length})</CardTitle>
             {can("course.create") && (
-              <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
                 <Plus className="h-3.5 w-3.5" /> Thêm
               </Button>
             )}
@@ -95,13 +107,36 @@ export default function CourseDetailPage() {
                     key={l.id}
                     className="flex items-center justify-between rounded-md border px-3 py-2"
                   >
-                    <div>
+                    <div className="flex-1">
                       <span className="font-mono text-xs text-muted-foreground mr-2">
                         {l.code}
                       </span>
                       <span className="font-medium">{l.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">#{l.sequence}</span>
+                    <span className="text-xs text-muted-foreground mr-3">
+                      #{l.sequence}
+                    </span>
+
+                    {can("course.update") && (
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => setEditLevel(l)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => setDeleteLevelState(l)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -114,7 +149,46 @@ export default function CourseDetailPage() {
         <EditCourseDialog course={course} open={editOpen} onOpenChange={setEditOpen} />
       )}
 
-      {id && <LevelDialog courseId={id} open={open} onOpenChange={setOpen} />}
+      {id && (
+        <LevelDialog courseId={id} open={addOpen} onOpenChange={setAddOpen} />
+      )}
+
+      {id && editLevel && (
+        <EditLevelDialog
+          courseId={id}
+          level={editLevel}
+          open={!!editLevel}
+          onOpenChange={(v) => !v && setEditLevel(null)}
+        />
+      )}
+
+      {id && (
+        <ConfirmDialog
+          open={!!deleteLevelState}
+          onOpenChange={(v) => !v && setDeleteLevelState(null)}
+          title="Xóa cấp độ?"
+          description={`Cấp độ "${deleteLevelState?.name ?? ""}" sẽ bị xóa. Không thể hoàn tác.`}
+          confirmLabel="Xóa"
+          destructive
+          loading={deleteLevel.isPending}
+          onConfirm={() => {
+            if (!id || !deleteLevelState) return;
+            deleteLevel.mutate(
+              { courseId: id, levelId: deleteLevelState.id },
+              {
+                onSuccess: () => {
+                  toast.success("Đã xóa cấp độ");
+                  setDeleteLevelState(null);
+                },
+                onError: (err: any) =>
+                  toast.error(
+                    err?.response?.data?.error?.message ?? "Không xóa được"
+                  ),
+              }
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -218,6 +292,94 @@ function LevelDialog({
           </Button>
           <Button onClick={submit} disabled={create.isPending}>
             Thêm
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditLevelDialog({
+  courseId,
+  level,
+  open,
+  onOpenChange,
+}: {
+  courseId: string;
+  level: { id: string; code: string; name: string; sequence: number; duration_hours: number | null };
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const update = useUpdateLevel();
+  const [code, setCode] = useState(level.code);
+  const [name, setName] = useState(level.name);
+  const [sequence, setSequence] = useState(String(level.sequence));
+  const [hours, setHours] = useState(level.duration_hours ? String(level.duration_hours) : "");
+
+  function submit() {
+    if (!code || !name) return toast.error("Nhập mã và tên");
+    update.mutate(
+      {
+        courseId,
+        levelId: level.id,
+        payload: {
+          code,
+          name,
+          sequence: parseInt(sequence) || 0,
+          duration_hours: hours ? parseInt(hours) : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Đã cập nhật cấp độ");
+          onOpenChange(false);
+        },
+        onError: (err: any) =>
+          toast.error(err?.response?.data?.error?.message ?? "Không cập nhật được"),
+      }
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Chỉnh sửa cấp độ</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label>Mã *</Label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Tên *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Thứ tự</Label>
+              <Input
+                type="number"
+                value={sequence}
+                onChange={(e) => setSequence(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Giờ học</Label>
+              <Input
+                type="number"
+                value={hours}
+                onChange={(e) => setHours(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Hủy
+          </Button>
+          <Button onClick={submit} disabled={update.isPending}>
+            {update.isPending ? "Đang lưu..." : "Lưu"}
           </Button>
         </DialogFooter>
       </DialogContent>

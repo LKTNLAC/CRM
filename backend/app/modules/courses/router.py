@@ -73,3 +73,27 @@ async def create_level(
     session: AsyncSession = Depends(get_session),
 ):
     return await CourseService(session, ctx).create_level(course_id, body.model_dump())
+
+@router.patch("/{course_id}/levels/{level_id}", response_model=LevelResponse)
+async def update_level(
+    course_id: UUID,
+    level_id: UUID,
+    body: LevelUpdate,
+    ctx: TenantContext = Depends(require_permission("course.update")),
+    session: AsyncSession = Depends(get_session),
+):
+    return await CourseService(session, ctx).update_level(
+        course_id, level_id, body.model_dump(exclude_none=True)
+    )
+
+
+@router.delete("/{course_id}/levels/{level_id}", status_code=204)
+async def delete_level(
+    course_id: UUID,
+    level_id: UUID,
+    ctx: TenantContext = Depends(require_permission("course.update")),
+    session: AsyncSession = Depends(get_session),
+):
+    await CourseService(session, ctx).delete_level(course_id, level_id)
+    
+    

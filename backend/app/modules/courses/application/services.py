@@ -70,3 +70,44 @@ class CourseService:
         await self.session.flush()
         await self.session.commit()
         return level
+    
+    async def update_level(self, course_id: UUID, level_id: UUID, data: dict) -> CourseLevelModel:
+        await self.get(course_id)
+        stmt = select(CourseLevelModel).where(
+            CourseLevelModel.id == level_id,
+            CourseLevelModel.course_id == course_id,
+        )
+        level = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not level:
+            raise NotFoundError("Level not found")
+
+        for k, v in data.items():
+            if v is not None:
+                setattr(level, k, v)
+
+        await self.session.commit()
+        return level
+
+    async def delete_level(self, course_id: UUID, level_id: UUID) -> None:
+        await self.get(course_id)
+        stmt = select(CourseLevelModel).where(
+            CourseLevelModel.id == level_id,
+            CourseLevelModel.course_id == course_id,
+        )
+        level = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not level:
+            raise NotFoundError("Level not found")
+
+        # Kiểm tra có class nào đang dùng level này không
+        from app.modules.classes.infrastructure.models import ClassModel
+        using = (await self.session.execute(
+            select(ClassModel.id).where(
+                ClassModel.level_id == level_id,
+                ClassModel.deleted_at.is_(None),
+            ).limit(1)
+        )).scalar_one_or_none()
+        if using:
+            raise ConflictError("Không thể xóa — có lớp học đang sử dụng cấp độ này")
+
+        await self.session.delete(level)
+        await self.session.commit()
