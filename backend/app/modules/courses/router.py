@@ -13,6 +13,7 @@ from app.modules.courses.schemas import (
     CourseUpdate,
     LevelCreate,
     LevelResponse,
+    LevelUpdate,
 )
 
 router = APIRouter(prefix="/courses", tags=["courses"])
