@@ -15,6 +15,8 @@ from app.modules.enrollments.infrastructure.models import (
 )
 from app.core.errors import ConflictError, NotFoundError
 
+from datetime import date
+
 class ClassService:
     def __init__(self, session: AsyncSession, tenant: TenantContext):
         self.session = session
@@ -190,3 +192,50 @@ class ClassService:
             raise NotFoundError("Schedule not found")
         await self.session.delete(s)
         await self.session.commit()
+        
+    async def list_teachers(self, class_id: UUID) -> list[dict]:
+        from app.modules.auth.infrastructure.models import User
+        await self.get(class_id)
+        stmt = (
+            select(ClassTeacherModel, User)
+            .join(User, User.id == ClassTeacherModel.teacher_id)
+            .where(
+                ClassTeacherModel.class_id == class_id,
+                ClassTeacherModel.status == "ACTIVE",
+            )
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [
+            {
+                "id": str(ct.id),
+                "teacher_id": str(ct.teacher_id),
+                "teacher_name": u.full_name,
+                "teacher_email": u.email,
+                "role": ct.role,
+                "from_date": ct.from_date.isoformat() if ct.from_date else None,
+            }
+            for ct, u in rows
+        ]
+        
+    @router.delete("/{class_id}/teachers/{teacher_id}", status_code=204)
+    async def unassign_teacher(
+        class_id: UUID,
+        teacher_id: UUID,
+        ctx: TenantContext = Depends(require_permission("class.assign_teacher")),
+        session: AsyncSession = Depends(get_session),
+    ):
+        await ClassService(session, ctx).unassign_teacher(class_id, teacher_id)
+    
+    async def unassign_teacher(self, class_id: UUID, teacher_id: UUID) -> None:
+        stmt = select(ClassTeacherModel).where(
+            ClassTeacherModel.class_id == class_id,
+            ClassTeacherModel.teacher_id == teacher_id,
+            ClassTeacherModel.status == "ACTIVE",
+        )
+        ct = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not ct:
+            raise NotFoundError("Teacher assignment not found")
+        ct.status = "REPLACED"
+        ct.to_date = date.today()
+        await self.session.commit()
+    

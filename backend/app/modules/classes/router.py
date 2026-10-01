@@ -109,4 +109,11 @@ async def delete_schedule(
 ):
     await ClassService(session, ctx).delete_schedule(class_id, schedule_id)
     
-    
+@router.get("/{class_id}/teachers")
+async def list_teachers(
+    class_id: UUID,
+    ctx: TenantContext = Depends(require_permission("class.read")),
+    session: AsyncSession = Depends(get_session),
+):
+    return await ClassService(session, ctx).list_teachers(class_id)
+

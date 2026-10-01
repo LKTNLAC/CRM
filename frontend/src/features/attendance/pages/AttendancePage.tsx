@@ -12,6 +12,7 @@ import { useClasses } from "@/features/classes/services";
 import { usePermission } from "@/permissions/usePermission";
 import { useAttendance } from "../services";
 import { ATTENDANCE_LABELS, type Attendance } from "../types";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function AttendancePage() {
   const navigate = useNavigate();
@@ -31,6 +32,9 @@ export default function AttendancePage() {
     { key: "status", header: "Trạng thái", cell: (r) => <StatusBadge status={r.status} /> },
     { key: "note", header: "Ghi chú", cell: (r) => r.note ?? "—" },
   ];
+
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.roles.includes("TEACHER") && !user.roles.some(r => ["SUPER_ADMIN", "SCHOOL_ADMIN", "ACADEMIC_MANAGER"].includes(r));
 
   return (
     <div>

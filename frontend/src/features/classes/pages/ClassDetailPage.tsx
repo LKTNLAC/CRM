@@ -2,7 +2,14 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Loader2, Pencil, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -18,24 +25,40 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { usePermission } from "@/permissions/usePermission";
-import { useClass, useClassSchedules, useUpdateClass } from "../services";
+import { useUsers } from "@/features/users/services";
+import {
+  useClass,
+  useClassSchedules,
+  useUpdateClass,
+  useUpdateSchedule,
+  useDeleteSchedule,
+  useClassTeachers,
+  useAssignTeacher,
+  useUnassignTeacher,
+} from "../services";
 import { ScheduleDialog } from "../components/ScheduleDialog";
 import { DAY_NAMES } from "../types";
-import { Trash2 } from "lucide-react";
-import { useUpdateSchedule, useDeleteSchedule } from "../services";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 export default function ClassDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { can } = usePermission();
+
   const { data: cls, isLoading } = useClass(id);
   const { data: schedules = [] } = useClassSchedules(id);
-  const [open, setOpen] = useState(false);
+  const { data: teachers = [] } = useClassTeachers(id);
+  const { data: teacherUsers = [] } = useUsers({ role: "TEACHER" });
+
+  const unassign = useUnassignTeacher();
+
+  const [addScheduleOpen, setAddScheduleOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editSchedule, setEditSchedule] = useState<any | null>(null);
-  const [deleteSchedule, setDeleteSchedule] = useState<any | null>(null);
+  const [deleteScheduleState, setDeleteScheduleState] = useState<any | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+
   const deleteSch = useDeleteSchedule();
 
   if (isLoading || !cls) {
@@ -70,6 +93,7 @@ export default function ClassDetailPage() {
       />
 
       <div className="grid lg:grid-cols-3 gap-4">
+        {/* Card 1: Thông tin */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Thông tin</CardTitle>
@@ -87,11 +111,12 @@ export default function ClassDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Card 2: Lịch học */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Lịch học ({schedules.length})</CardTitle>
             {can("schedule.manage") && (
-              <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              <Button size="sm" variant="outline" onClick={() => setAddScheduleOpen(true)}>
                 <Plus className="h-3.5 w-3.5" /> Thêm lịch
               </Button>
             )}
@@ -106,14 +131,15 @@ export default function ClassDetailPage() {
                 {schedules.map((s) => (
                   <li
                     key={s.id}
-                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm gap-3"
                   >
                     <span className="font-medium">{DAY_NAMES[s.day_of_week]}</span>
                     <span className="font-mono text-xs">
                       {s.start_time} → {s.end_time}
                     </span>
-                    <span className="text-muted-foreground text-xs">{s.room ?? "—"}</span>
-
+                    <span className="text-muted-foreground text-xs flex-1">
+                      {s.room ?? "—"}
+                    </span>
                     {can("schedule.manage") && (
                       <div className="flex gap-1">
                         <Button
@@ -128,7 +154,7 @@ export default function ClassDetailPage() {
                           size="icon"
                           variant="ghost"
                           className="h-7 w-7 text-destructive"
-                          onClick={() => setDeleteSchedule(s)}
+                          onClick={() => setDeleteScheduleState(s)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -140,14 +166,79 @@ export default function ClassDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Card 3: Giáo viên */}
+        <Card className="lg:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Giáo viên ({teachers.length})</CardTitle>
+            {can("class.assign_teacher") && (
+              <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
+                <UserPlus className="h-3.5 w-3.5" /> Gán giáo viên
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {teachers.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Chưa có giáo viên nào được gán.
+              </p>
+            ) : (
+              <ul className="grid md:grid-cols-2 gap-2">
+                {teachers.map((t: any) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{t.teacher_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t.teacher_email} · {t.role}
+                      </span>
+                    </div>
+                    {can("class.assign_teacher") && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() =>
+                          unassign.mutate(
+                            { classId: id!, teacherId: t.teacher_id },
+                            {
+                              onSuccess: () => toast.success("Đã bỏ gán giáo viên"),
+                              onError: (err: any) =>
+                                toast.error(
+                                  err?.response?.data?.error?.message ?? "Không bỏ được"
+                                ),
+                            }
+                          )
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Dialog: Thêm lịch học */}
+      {id && (
+        <ScheduleDialog
+          classId={id}
+          open={addScheduleOpen}
+          onOpenChange={setAddScheduleOpen}
+        />
+      )}
+
+      {/* Dialog: Sửa lớp */}
       {cls && (
         <EditClassDialog cls={cls} open={editOpen} onOpenChange={setEditOpen} />
       )}
 
-      {id && <ScheduleDialog classId={id} open={open} onOpenChange={setOpen} />}
-    
+      {/* Dialog: Sửa lịch học */}
       {id && editSchedule && (
         <EditScheduleDialog
           classId={id}
@@ -157,23 +248,26 @@ export default function ClassDetailPage() {
         />
       )}
 
+      {/* Dialog: Xóa lịch học */}
       {id && (
         <ConfirmDialog
-          open={!!deleteSchedule}
-          onOpenChange={(v) => !v && setDeleteSchedule(null)}
+          open={!!deleteScheduleState}
+          onOpenChange={(v) => !v && setDeleteScheduleState(null)}
           title="Xóa lịch học?"
-          description={`${DAY_NAMES[deleteSchedule?.day_of_week ?? 0]} ${deleteSchedule?.start_time ?? ""} → ${deleteSchedule?.end_time ?? ""}`}
+          description={`${DAY_NAMES[deleteScheduleState?.day_of_week ?? 0]} ${
+            deleteScheduleState?.start_time ?? ""
+          } → ${deleteScheduleState?.end_time ?? ""}`}
           confirmLabel="Xóa"
           destructive
           loading={deleteSch.isPending}
           onConfirm={() => {
-            if (!id || !deleteSchedule) return;
+            if (!id || !deleteScheduleState) return;
             deleteSch.mutate(
-              { classId: id, scheduleId: deleteSchedule.id },
+              { classId: id, scheduleId: deleteScheduleState.id },
               {
                 onSuccess: () => {
                   toast.success("Đã xóa lịch học");
-                  setDeleteSchedule(null);
+                  setDeleteScheduleState(null);
                 },
                 onError: (err: any) =>
                   toast.error(err?.response?.data?.error?.message ?? "Không xóa được"),
@@ -183,6 +277,15 @@ export default function ClassDetailPage() {
         />
       )}
 
+      {/* Dialog: Gán giáo viên */}
+      {id && (
+        <AssignTeacherDialog
+          classId={id}
+          teachers={teacherUsers}
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+        />
+      )}
     </div>
   );
 }
@@ -195,6 +298,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
+
+/* ============================================================
+   DIALOG 1: Sửa lớp học
+   ============================================================ */
 
 function EditClassDialog({
   cls,
@@ -302,6 +409,11 @@ function EditClassDialog({
     </Dialog>
   );
 }
+
+/* ============================================================
+   DIALOG 2: Sửa lịch học
+   ============================================================ */
+
 function EditScheduleDialog({
   classId,
   schedule,
@@ -309,7 +421,13 @@ function EditScheduleDialog({
   onOpenChange,
 }: {
   classId: string;
-  schedule: { id: string; day_of_week: number; start_time: string; end_time: string; room: string | null };
+  schedule: {
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    room: string | null;
+  };
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
@@ -380,6 +498,89 @@ function EditScheduleDialog({
           </Button>
           <Button onClick={submit} disabled={update.isPending}>
             {update.isPending ? "Đang lưu..." : "Lưu"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   DIALOG 3: Gán giáo viên
+   ============================================================ */
+
+function AssignTeacherDialog({
+  classId,
+  teachers,
+  open,
+  onOpenChange,
+}: {
+  classId: string;
+  teachers: { id: string; full_name: string; email: string }[];
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const assign = useAssignTeacher();
+  const [teacherId, setTeacherId] = useState("");
+  const [role, setRole] = useState("MAIN");
+
+  function submit() {
+    if (!teacherId) return toast.error("Chọn giáo viên");
+    assign.mutate(
+      {
+        classId,
+        payload: {
+          teacher_id: teacherId,
+          role,
+          from_date: new Date().toISOString().slice(0, 10),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Đã gán giáo viên");
+          setTeacherId("");
+          setRole("MAIN");
+          onOpenChange(false);
+        },
+        onError: (err: any) =>
+          toast.error(err?.response?.data?.error?.message ?? "Không gán được"),
+      }
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Gán giáo viên</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label>Giáo viên</Label>
+            <Select value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
+              <option value="">— Chọn —</option>
+              {teachers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name} — {u.email}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Vai trò</Label>
+            <Select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="MAIN">Giáo viên chính</option>
+              <option value="ASSISTANT">Trợ giảng</option>
+              <option value="SUBSTITUTE">Dạy thay</option>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Hủy
+          </Button>
+          <Button onClick={submit} disabled={!teacherId || assign.isPending}>
+            {assign.isPending ? "Đang lưu..." : "Gán"}
           </Button>
         </DialogFooter>
       </DialogContent>

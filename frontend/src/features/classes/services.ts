@@ -56,14 +56,7 @@ export function useAddSchedule() {
   });
 }
 
-export function useAssignTeacher() {
-  return useMutation({
-    mutationFn: async ({ classId, payload }: { classId: string; payload: TeacherAssign }) => {
-      const { data } = await api.post(`/classes/${classId}/teachers`, payload);
-      return data;
-    },
-  });
-}
+
 
 export function useUpdateClass() {
   const qc = useQueryClient();
@@ -114,3 +107,40 @@ export function useDeleteSchedule() {
     },
   });
 }
+
+export function useClassTeachers(classId: string | undefined) {
+  return useQuery({
+    queryKey: ["class-teachers", classId],
+    queryFn: async () => {
+      const { data } = await api.get(`/classes/${classId}/teachers`);
+      return data;
+    },
+    enabled: !!classId,
+  });
+}
+
+export function useAssignTeacher() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ classId, payload }: { classId: string; payload: TeacherAssign }) => {
+      const { data } = await api.post(`/classes/${classId}/teachers`, payload);
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["class-teachers", vars.classId] });
+    },
+  });
+}
+
+export function useUnassignTeacher() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ classId, teacherId }: { classId: string; teacherId: string }) => {
+      await api.delete(`/classes/${classId}/teachers/${teacherId}`);
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["class-teachers", vars.classId] });
+    },
+  });
+}
+
