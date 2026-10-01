@@ -75,6 +75,7 @@ ROLES = {
         "auth.login", "auth.logout", "user.read",
         "student.read",
         "class.read", "schedule.read",
+        "enrollment.read", 
         "attendance.read", "attendance.create", "attendance.update",
         "exam.read", "exam.create", "exam_result.read", "exam_result.update",
         "task.read", "task.create", "task.update",
