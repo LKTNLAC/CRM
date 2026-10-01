@@ -70,6 +70,11 @@ export default function LeadDetailPage() {
               onChange={handleStatusChange}
               disabled={updateStatus.isPending}
             />
+            {lead.status === "ENROLLED" && (
+              <div className="mt-3 rounded-md bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
+                ℹ️ Lead đã ghi danh thành công. Trạng thái không thể thay đổi.
+              </div>
+            )}
           </CardContent>
         </Card>
 
