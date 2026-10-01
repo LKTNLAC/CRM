@@ -16,6 +16,7 @@ from app.modules.enrollments.infrastructure.models import (
 from app.core.errors import ConflictError, NotFoundError
 
 from datetime import date
+from typing import Any
 
 class ClassService:
     def __init__(self, session: AsyncSession, tenant: TenantContext):
@@ -193,7 +194,7 @@ class ClassService:
         await self.session.delete(s)
         await self.session.commit()
         
-    async def list_teachers(self, class_id: UUID) -> list[dict]:
+    async def list_teachers(self, class_id: UUID) -> list[Any]:
         from app.modules.auth.infrastructure.models import User
         await self.get(class_id)
         stmt = (
