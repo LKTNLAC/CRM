@@ -13,9 +13,9 @@ from app.modules.classes.schemas import (
     ClassUpdate,
     ScheduleCreate,
     ScheduleResponse,
+    ScheduleUpdate,
     TeacherAssign,
 )
-from app.modules.classes.schemas import ScheduleCreate, ScheduleUpdate
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
@@ -29,7 +29,9 @@ async def list_classes(
     ctx: TenantContext = Depends(require_permission("class.read")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await ClassService(session, ctx).list(status=status, course_id=course_id, limit=limit, offset=offset)
+    return await ClassService(session, ctx).list(
+        status=status, course_id=course_id, limit=limit, offset=offset
+    )
 
 
 @router.post("", response_model=ClassResponse, status_code=201)
@@ -57,7 +59,9 @@ async def update_class(
     ctx: TenantContext = Depends(require_permission("class.update")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await ClassService(session, ctx).update(class_id, body.model_dump(exclude_none=True))
+    return await ClassService(session, ctx).update(
+        class_id, body.model_dump(exclude_none=True)
+    )
 
 
 @router.get("/{class_id}/schedules", response_model=list[ScheduleResponse])
@@ -79,16 +83,6 @@ async def add_schedule(
     return await ClassService(session, ctx).add_schedule(class_id, body.model_dump())
 
 
-@router.post("/{class_id}/teachers")
-async def assign_teacher(
-    class_id: UUID,
-    body: TeacherAssign,
-    ctx: TenantContext = Depends(require_permission("class.assign_teacher")),
-    session: AsyncSession = Depends(get_session),
-):
-    ct = await ClassService(session, ctx).assign_teacher(class_id, body.model_dump())
-    return {"id": str(ct.id), "class_id": str(ct.class_id), "teacher_id": str(ct.teacher_id), "role": ct.role}
-
 @router.patch("/{class_id}/schedules/{schedule_id}", response_model=ScheduleResponse)
 async def update_schedule(
     class_id: UUID,
@@ -97,7 +91,9 @@ async def update_schedule(
     ctx: TenantContext = Depends(require_permission("schedule.manage")),
     session: AsyncSession = Depends(get_session),
 ):
-    return await ClassService(session, ctx).update_schedule(class_id, schedule_id, body.model_dump(exclude_none=True))
+    return await ClassService(session, ctx).update_schedule(
+        class_id, schedule_id, body.model_dump(exclude_none=True)
+    )
 
 
 @router.delete("/{class_id}/schedules/{schedule_id}", status_code=204)
@@ -108,7 +104,24 @@ async def delete_schedule(
     session: AsyncSession = Depends(get_session),
 ):
     await ClassService(session, ctx).delete_schedule(class_id, schedule_id)
-    
+
+
+@router.post("/{class_id}/teachers")
+async def assign_teacher(
+    class_id: UUID,
+    body: TeacherAssign,
+    ctx: TenantContext = Depends(require_permission("class.assign_teacher")),
+    session: AsyncSession = Depends(get_session),
+):
+    ct = await ClassService(session, ctx).assign_teacher(class_id, body.model_dump())
+    return {
+        "id": str(ct.id),
+        "class_id": str(ct.class_id),
+        "teacher_id": str(ct.teacher_id),
+        "role": ct.role,
+    }
+
+
 @router.get("/{class_id}/teachers")
 async def list_teachers(
     class_id: UUID,
@@ -117,3 +130,12 @@ async def list_teachers(
 ):
     return await ClassService(session, ctx).list_teachers(class_id)
 
+
+@router.delete("/{class_id}/teachers/{teacher_id}", status_code=204)
+async def unassign_teacher(
+    class_id: UUID,
+    teacher_id: UUID,
+    ctx: TenantContext = Depends(require_permission("class.assign_teacher")),
+    session: AsyncSession = Depends(get_session),
+):
+    await ClassService(session, ctx).unassign_teacher(class_id, teacher_id)
