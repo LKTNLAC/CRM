@@ -195,3 +195,21 @@ class AttendanceService:
         if not ct:
             raise ForbiddenError("Bạn không được phân công lớp này")
         
+    async def _ensure_teacher_owns_class(session, tenant, class_id):
+        """Nếu user chỉ có role TEACHER (không có quyền org-wide),
+        verify teacher được assign vào class."""
+        from app.core.scope import is_teacher_only
+        from app.modules.classes.infrastructure.models import ClassTeacherModel
+        from app.core.errors import ForbiddenError
+
+        if not is_teacher_only(tenant.roles):
+            return
+
+        stmt = select(ClassTeacherModel).where(
+            ClassTeacherModel.class_id == class_id,
+            ClassTeacherModel.teacher_id == tenant.user_id,
+            ClassTeacherModel.status == "ACTIVE",
+        )
+        ct = (await session.execute(stmt)).scalar_one_or_none()
+        if not ct:
+            raise ForbiddenError("Bạn không được phân công lớp này")
