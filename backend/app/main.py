@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Load all models so SQLAlchemy registers them
+# Ensure all models are loaded so SQLAlchemy resolves FKs
 import app.modules.auth.infrastructure.models  # noqa: F401
 import app.modules.students.infrastructure.models  # noqa: F401
 import app.modules.tasks.infrastructure.models  # noqa: F401
