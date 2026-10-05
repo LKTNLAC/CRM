@@ -11,6 +11,7 @@ from app.modules.communications.application.services import CommunicationService
 from app.modules.notifications.application.services import NotificationService
 from app.modules.students.infrastructure.models import StudentModel
 from app.modules.tasks.application.services import TaskService
+from app.modules.auth.infrastructure import models as _auth_models  # noqa
 
 
 async def _resolve_counselor_id(

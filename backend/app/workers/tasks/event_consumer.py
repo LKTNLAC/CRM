@@ -13,7 +13,22 @@ from app.core.tenant import TenantContext
 from app.events.outbox import OutboxEvent
 from app.modules.workflows.application.engine import WorkflowEngine
 from app.workers.celery_app import celery_app
-
+# Import tất cả model để SQLAlchemy resolve FK
+# Ensure all models are loaded so SQLAlchemy can resolve FKs
+from app.modules.auth.infrastructure import models as _auth_models  # noqa: F401
+from app.modules.students.infrastructure import models as _student_models  # noqa: F401
+from app.modules.tasks.infrastructure import models as _task_models  # noqa: F401
+from app.modules.notifications.infrastructure import models as _notif_models  # noqa: F401
+from app.modules.communications.infrastructure import models as _comm_models  # noqa: F401
+from app.modules.leads.infrastructure import models as _lead_models  # noqa: F401
+from app.modules.guardians.infrastructure import models as _guardian_models  # noqa: F401
+from app.modules.courses.infrastructure import models as _course_models  # noqa: F401
+from app.modules.classes.infrastructure import models as _class_models  # noqa: F401
+from app.modules.enrollments.infrastructure import models as _enroll_models  # noqa: F401
+from app.modules.attendance.infrastructure import models as _att_models  # noqa: F401
+from app.modules.examinations.infrastructure import models as _exam_models  # noqa: F401
+from app.modules.workflows.infrastructure import models as _wf_models  # noqa: F401
+from app.modules.audit.infrastructure import models as _audit_models  # noqa: F401
 
 @celery_app.task(name="app.workers.tasks.event_consumer.consume_pending")
 def consume_pending(batch: int = 20):
