@@ -17,17 +17,13 @@ async def _resolve_counselor_id(
     session: AsyncSession, payload: dict, config: dict
 ) -> str | None:
     """Xác định counselor_id từ config hoặc payload hoặc student."""
-    # 1. Từ config
     if config.get("assignee_id"):
         return str(config["assignee_id"])
     if config.get("user_id"):
         return str(config["user_id"])
-
-    # 2. Từ payload
     if payload.get("counselor_id"):
         return str(payload["counselor_id"])
 
-    # 3. Query từ student
     student_id = payload.get("student_id")
     if student_id:
         try:
@@ -42,7 +38,6 @@ async def _resolve_counselor_id(
                 return str(counselor_id)
         except Exception:
             pass
-
     return None
 
 
