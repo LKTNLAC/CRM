@@ -1,74 +1,107 @@
-"""Action executors — nhận context + payload → result."""
+"""Action executors."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.tenant import TenantContext
 from app.modules.communications.application.services import CommunicationService
 from app.modules.notifications.application.services import NotificationService
+from app.modules.students.infrastructure.models import StudentModel
 from app.modules.tasks.application.services import TaskService
 
 
-async def create_task(session: AsyncSession, tenant: TenantContext, payload: dict, config: dict) -> dict:
+async def _resolve_counselor_id(
+    session: AsyncSession, payload: dict, config: dict
+) -> str | None:
+    """Xác định counselor_id từ config hoặc payload hoặc student."""
+    # 1. Từ config
+    if config.get("assignee_id"):
+        return str(config["assignee_id"])
+    if config.get("user_id"):
+        return str(config["user_id"])
+
+    # 2. Từ payload
+    if payload.get("counselor_id"):
+        return str(payload["counselor_id"])
+
+    # 3. Query từ student
+    student_id = payload.get("student_id")
+    if student_id:
+        try:
+            counselor_id = (
+                await session.execute(
+                    select(StudentModel.counselor_id).where(
+                        StudentModel.id == UUID(str(student_id))
+                    )
+                )
+            ).scalar_one_or_none()
+            if counselor_id:
+                return str(counselor_id)
+        except Exception:
+            pass
+
+    return None
+
+
+async def create_task(
+    session: AsyncSession, tenant: TenantContext, payload: dict, config: dict
+) -> dict:
     svc = TaskService(session, tenant)
-    assignee_id = config.get("assignee_id") or payload.get("counselor_id")
+    assignee_id = await _resolve_counselor_id(session, payload, config)
     if not assignee_id:
         return {"skipped": "no_assignee"}
 
-    task = await svc.create({
-        "task_type": config.get("task_type", "FOLLOW_UP"),
-        "title": config.get("title", "Auto task"),
-        "description": config.get("description"),
-        "assignee_id": UUID(assignee_id) if isinstance(assignee_id, str) else assignee_id,
-        "related_type": payload.get("aggregate_type"),
-        "related_id": UUID(payload["aggregate_id"]) if payload.get("aggregate_id") else None,
-        "priority": config.get("priority", "NORMAL"),
-        "due_at": datetime.now(UTC) + timedelta(days=config.get("due_days", 1)),
-    })
+    task = await svc.create(
+        {
+            "task_type": config.get("task_type", "FOLLOW_UP"),
+            "title": config.get("title", "Auto task"),
+            "description": config.get("description"),
+            "assignee_id": UUID(assignee_id),
+            "related_type": payload.get("aggregate_type"),
+            "related_id": UUID(payload["aggregate_id"])
+            if payload.get("aggregate_id")
+            else None,
+            "priority": config.get("priority", "NORMAL"),
+            "due_at": datetime.now(UTC) + timedelta(days=config.get("due_days", 1)),
+        }
+    )
     return {"task_id": str(task.id)}
 
 
 async def notify_counselor(
     session: AsyncSession, tenant: TenantContext, payload: dict, config: dict
 ) -> dict:
-    from sqlalchemy import select
-    from app.modules.students.infrastructure.models import StudentModel
-
     svc = NotificationService(session, tenant)
-    user_id = config.get("user_id") or payload.get("counselor_id")
-
-    # Fallback: query counselor từ student nếu payload không có
-    if not user_id and payload.get("student_id"):
-        counselor_id = (await session.execute(
-            select(StudentModel.counselor_id).where(
-                StudentModel.id == payload["student_id"]
-            )
-        )).scalar_one_or_none()
-        user_id = str(counselor_id) if counselor_id else None
-
+    user_id = await _resolve_counselor_id(session, payload, config)
     if not user_id:
         return {"skipped": "no_counselor"}
 
     n = await svc.send(
-        user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
+        user_id=UUID(user_id),
         notification_type=config.get("notification_type", "WORKFLOW_ALERT"),
         title=config.get("title", "Workflow alert"),
         body=config.get("body"),
         related_type=payload.get("aggregate_type"),
-        related_id=UUID(payload["aggregate_id"]) if payload.get("aggregate_id") else None,
+        related_id=UUID(payload["aggregate_id"])
+        if payload.get("aggregate_id")
+        else None,
     )
     await session.commit()
     return {"notification_id": str(n.id)}
 
 
-async def send_notification(session: AsyncSession, tenant: TenantContext, payload: dict, config: dict) -> dict:
-    # Alias cho notify_counselor
+async def send_notification(
+    session: AsyncSession, tenant: TenantContext, payload: dict, config: dict
+) -> dict:
     return await notify_counselor(session, tenant, payload, config)
 
 
-async def send_communication(session: AsyncSession, tenant: TenantContext, payload: dict, config: dict) -> dict:
+async def send_communication(
+    session: AsyncSession, tenant: TenantContext, payload: dict, config: dict
+) -> dict:
     svc = CommunicationService(session, tenant)
     channel = config.get("channel", "EMAIL")
     recipient = config.get("recipient") or payload.get("recipient")
@@ -81,7 +114,9 @@ async def send_communication(session: AsyncSession, tenant: TenantContext, paylo
         subject=config.get("subject"),
         body=config.get("body", "Auto message"),
         related_type=payload.get("aggregate_type"),
-        related_id=UUID(payload["aggregate_id"]) if payload.get("aggregate_id") else None,
+        related_id=UUID(payload["aggregate_id"])
+        if payload.get("aggregate_id")
+        else None,
     )
     return {"communication_id": str(c.id)}
 
