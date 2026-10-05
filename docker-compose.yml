@@ -48,3 +48,10 @@ services:
 
 volumes:
   pgdata:
+
+beat:
+  build: ./backend
+  command: celery -A app.workers.celery_app beat -l info
+  env_file: .env
+  depends_on:
+    - redis
