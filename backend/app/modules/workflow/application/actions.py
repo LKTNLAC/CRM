@@ -30,9 +30,24 @@ async def create_task(session: AsyncSession, tenant: TenantContext, payload: dic
     return {"task_id": str(task.id)}
 
 
-async def notify_counselor(session: AsyncSession, tenant: TenantContext, payload: dict, config: dict) -> dict:
+async def notify_counselor(
+    session: AsyncSession, tenant: TenantContext, payload: dict, config: dict
+) -> dict:
+    from sqlalchemy import select
+    from app.modules.students.infrastructure.models import StudentModel
+
     svc = NotificationService(session, tenant)
     user_id = config.get("user_id") or payload.get("counselor_id")
+
+    # Fallback: query counselor từ student nếu payload không có
+    if not user_id and payload.get("student_id"):
+        counselor_id = (await session.execute(
+            select(StudentModel.counselor_id).where(
+                StudentModel.id == payload["student_id"]
+            )
+        )).scalar_one_or_none()
+        user_id = str(counselor_id) if counselor_id else None
+
     if not user_id:
         return {"skipped": "no_counselor"}
 
