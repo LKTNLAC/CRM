@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import { ArrowLeft, Loader2, Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { usePermission } from "@/permissions/usePermission";
 import { useExam, useExamResults, usePublishExam } from "../services";
 import { AddResultDialog } from "../components/AddResultDialog";
@@ -30,7 +30,12 @@ export default function ExamDetailPage() {
 
   return (
     <div>
-      <Button variant="ghost" size="sm" onClick={() => navigate("/exams")} className="mb-3 -ml-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate("/exams")}
+        className="mb-3 -ml-2"
+      >
         <ArrowLeft className="h-4 w-4" /> Quay lại
       </Button>
 
@@ -40,12 +45,25 @@ export default function ExamDetailPage() {
         actions={
           <div className="flex gap-2">
             <StatusBadge status={exam.status} />
+
+            {can("exam_result.read") && (
+              <ExportButton
+                endpoint="/export/exam-results"
+                filenamePrefix={`exam_${exam.id.slice(0, 8)}`}
+                params={{ exam_id: exam.id }}
+              />
+            )}
+
             {can("exam.update") && exam.status === "DRAFT" && (
               <Button
                 variant="outline"
                 onClick={() =>
                   publish.mutate(exam.id, {
                     onSuccess: () => toast.success("Đã công bố"),
+                    onError: (err: any) =>
+                      toast.error(
+                        err?.response?.data?.error?.message ?? "Không công bố được"
+                      ),
                   })
                 }
                 disabled={publish.isPending}
@@ -68,13 +86,22 @@ export default function ExamDetailPage() {
         </CardHeader>
         <CardContent>
           {results.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Chưa có kết quả.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Chưa có kết quả.
+            </p>
           ) : (
             <ul className="space-y-2">
               {results.map((r) => (
-                <li key={r.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                  <span className="font-mono text-xs">{r.student_id.slice(0, 8)}...</span>
-                  <span className="font-medium">{r.score} / {exam.max_score}</span>
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                >
+                  <span className="font-mono text-xs">
+                    {r.student_id.slice(0, 8)}...
+                  </span>
+                  <span className="font-medium">
+                    {r.score} / {exam.max_score}
+                  </span>
                   <span className="text-muted-foreground">{r.grade ?? "—"}</span>
                 </li>
               ))}

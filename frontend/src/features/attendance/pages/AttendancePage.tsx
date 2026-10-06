@@ -13,6 +13,7 @@ import { usePermission } from "@/permissions/usePermission";
 import { useAttendance } from "../services";
 import { ATTENDANCE_LABELS, type Attendance } from "../types";
 import { useAuthStore } from "@/stores/authStore";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export default function AttendancePage() {
   const navigate = useNavigate();
@@ -41,11 +42,22 @@ export default function AttendancePage() {
       <PageHeader
         title="Điểm danh"
         description="Xem và ghi điểm danh"
-        actions={can("attendance.create") && classId && (
-          <Button onClick={() => navigate(`/attendance/record?class_id=${classId}`)}>
-            <Plus className="h-4 w-4" /> Ghi điểm danh
-          </Button>
-        )}
+        actions={
+          <div className="flex gap-2">
+            {can("attendance.read") && classId && (
+              <ExportButton
+                endpoint="/export/attendance"
+                filenamePrefix={`attendance_${classId.slice(0, 8)}`}
+                params={{ class_id: classId }}
+              />
+            )}
+            {can("attendance.create") && classId && (
+              <Button onClick={() => navigate(`/attendance/record?class_id=${classId}`)}>
+                <Plus className="h-4 w-4" /> Ghi điểm danh
+              </Button>
+            )}
+          </div>
+        }
       />
 
       <div className="flex flex-col md:flex-row gap-3 mb-4">

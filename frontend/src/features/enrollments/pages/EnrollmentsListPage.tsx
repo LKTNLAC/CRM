@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { usePermission } from "@/permissions/usePermission";
 import { useEnrollments, useStudentMap } from "../services";
 import type { Enrollment } from "../types";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export default function EnrollmentsListPage() {
   const navigate = useNavigate();
@@ -57,13 +58,21 @@ export default function EnrollmentsListPage() {
         title="Ghi danh"
         description="Danh sách ghi danh học viên vào khóa học"
         actions={
-          can("enrollment.create") && (
-            <Button asChild>
-              <Link to="/enrollments/new">
-                <Plus className="h-4 w-4" /> Thêm ghi danh
-              </Link>
-            </Button>
-          )
+          <div className="flex gap-2">
+            {can("enrollment.read") && (
+              <ExportButton
+                endpoint="/export/enrollments"
+                filenamePrefix={`enrollments_${new Date().toISOString().slice(0, 10)}`}
+              />
+            )}
+            {can("enrollment.create") && (
+              <Button asChild>
+                <Link to="/enrollments/new">
+                  <Plus className="h-4 w-4" /> Thêm ghi danh
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
       <DataTable

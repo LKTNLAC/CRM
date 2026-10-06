@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { usePermission } from "@/permissions/usePermission";
 import { useLeads } from "../services";
 import { LEAD_STATUSES, type Lead } from "../types";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export default function LeadsListPage() {
   const navigate = useNavigate();
@@ -50,13 +51,21 @@ export default function LeadsListPage() {
         title="Leads"
         description="Quản lý khách hàng tiềm năng"
         actions={
-          can("lead.create") && (
-            <Button asChild>
-              <Link to="/leads/new">
-                <Plus className="h-4 w-4" /> Thêm lead
-              </Link>
-            </Button>
-          )
+          <div className="flex gap-2">
+            {can("lead.read") && (
+              <ExportButton
+                endpoint="/export/leads"
+                filenamePrefix={`leads_${new Date().toISOString().slice(0, 10)}`}
+              />
+            )}
+            {can("lead.create") && (
+              <Button asChild>
+                <Link to="/leads/new">
+                  <Plus className="h-4 w-4" /> Thêm lead
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
 

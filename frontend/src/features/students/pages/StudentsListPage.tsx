@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { usePermission } from "@/permissions/usePermission";
 import { useStudents } from "../services";
 import type { Student } from "../types";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export default function StudentsListPage() {
   const navigate = useNavigate();
@@ -49,13 +50,21 @@ export default function StudentsListPage() {
         title="Học viên"
         description="Danh sách học viên đang theo học"
         actions={
-          can("student.create") && (
-            <Button asChild>
-              <Link to="/students/new">
-                <Plus className="h-4 w-4" /> Thêm học viên
-              </Link>
-            </Button>
-          )
+          <div className="flex gap-2">
+            {can("student.read") && (
+              <ExportButton
+                endpoint="/export/students"
+                filenamePrefix={`students_${new Date().toISOString().slice(0, 10)}`}
+              />
+            )}
+            {can("student.create") && (
+              <Button asChild>
+                <Link to="/students/new">
+                  <Plus className="h-4 w-4" /> Thêm học viên
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
 
