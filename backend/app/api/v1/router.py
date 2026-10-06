@@ -19,6 +19,7 @@ from app.integrations.router import router as integrations_router
 from app.modules.reports.router import router as reports_router
 from app.modules.users.roles_router import router as roles_router
 from app.modules.portal.router import router as portal_router
+from app.modules.export.router import router as export_router
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -40,3 +41,4 @@ api_router.include_router(integrations_router)
 api_router.include_router(reports_router)
 api_router.include_router(roles_router)
 api_router.include_router(portal_router)
+api_router.include_router(export_router)
