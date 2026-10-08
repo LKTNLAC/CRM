@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useAuthStore } from "@/stores/authStore";
 import { useChangeOwnPassword } from "../services";
+import { Link } from "react-router-dom";
+import { Bell } from "lucide-react";
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
@@ -75,6 +77,21 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Tùy chọn thông báo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" asChild>
+              <Link to="/settings/notifications">
+                <Bell className="h-4 w-4" />
+                Cấu hình thông báo
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );

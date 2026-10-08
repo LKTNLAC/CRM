@@ -6,6 +6,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { usePermission } from "@/permissions/usePermission";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
+import { Link } from "react-router-dom";
+import { Bell, ArrowRight } from "lucide-react";
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -87,6 +89,25 @@ export default function SettingsPage() {
                 </Badge>
               }
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Tùy chọn thông báo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Chọn loại thông báo và kênh bạn muốn nhận.
+            </p>
+            <Link
+              to="/settings/notifications"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              <Bell className="h-4 w-4" />
+              Cấu hình
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </CardContent>
         </Card>
 

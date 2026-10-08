@@ -56,6 +56,10 @@ const ParentPortalPage = lazy(() => import("@/features/portal/pages/ParentPortal
 
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 
+const NotificationPreferencesPage = lazy(
+  () => import("@/features/notifications/pages/NotificationPreferencesPage")
+);
+
 import { useAuthStore } from "@/stores/authStore";
 
 function PortalRouter() {
@@ -136,6 +140,8 @@ export const router = createBrowserRouter([
           { path: "/portal", element: <Lazy><PortalRouter /></Lazy> },
         
           { path: "/settings", element: <Lazy><SettingsPage /></Lazy> },
+        
+          { path: "/settings/notifications",element: <Lazy><NotificationPreferencesPage /></Lazy>},
         ],
       },
     ],

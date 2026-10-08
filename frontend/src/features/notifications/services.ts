@@ -44,3 +44,40 @@ export function useUnreadCount() {
     refetchInterval: 30_000,
   });
 }
+
+export interface ChannelPref {
+  channel: string;
+  channel_label: string;
+  enabled: boolean;
+  locked: boolean;
+}
+
+export interface TypePref {
+  notification_type: string;
+  type_label: string;
+  channels: ChannelPref[];
+}
+
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: ["notification-preferences"],
+    queryFn: async () => {
+      const { data } = await api.get<TypePref[]>("/notifications/preferences");
+      return data;
+    },
+  });
+}
+
+export function useUpdateNotificationPreference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      notification_type: string;
+      channel: string;
+      enabled: boolean;
+    }) => {
+      await api.post("/notifications/preferences", payload);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notification-preferences"] }),
+  });
+}

@@ -9,6 +9,11 @@ from app.core.tenant import TenantContext
 from app.modules.notifications.application.services import NotificationService
 from app.modules.notifications.schemas import NotificationResponse
 
+from app.modules.notifications.schemas import (
+    NotificationTypePreference,
+    UpdatePreferenceRequest,
+)
+
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
@@ -40,3 +45,21 @@ async def mark_all_read(
 ):
     count = await NotificationService(session, ctx).mark_all_read(ctx.user_id)
     return {"marked": count}
+
+@router.get("/preferences", response_model=list[NotificationTypePreference])
+async def get_preferences(
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+):
+    return await NotificationService(session, ctx).get_preferences(ctx.user_id)
+
+
+@router.post("/preferences", status_code=204)
+async def update_preference(
+    body: UpdatePreferenceRequest,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+):
+    await NotificationService(session, ctx).update_preference(
+        ctx.user_id, body.notification_type, body.channel, body.enabled
+    )
