@@ -80,6 +80,7 @@ ROLES = {
         "exam.read", "exam.create", "exam_result.read", "exam_result.update",
         "task.read", "task.create", "task.update",
         "communication.send",
+        "setting.read",
         "report.dashboard", "report.academic",
     ],
     "ACCOUNTANT": [
