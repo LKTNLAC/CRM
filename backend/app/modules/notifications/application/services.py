@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.tenant import TenantContext
 from app.modules.notifications.infrastructure.models import NotificationModel
 from app.core.errors import ConflictError, NotFoundError
+from typing import List
 
 class NotificationService:
     def __init__(self, session: AsyncSession, tenant: TenantContext):
@@ -100,7 +101,7 @@ class NotificationService:
             return True  # default: enabled
         return pref.enabled
 
-    async def get_preferences(self, user_id: UUID) -> list[dict]:
+    async def get_preferences(self, user_id: UUID) -> List[dict]:
         """Trả về ma trận preferences (type × channel)."""
         from app.modules.notifications.domain.types import (
             ALL_CHANNELS,
